@@ -73,14 +73,18 @@ class CustomFields(Component):
         """ Returns the custom fields from TicketSystem component.
         Use a cfdict with 'name' key set to find a specific custom field only.
         """
-        if not cfield:    # return full list
-            return TicketSystem(self.env).get_custom_fields()
-        else:                  # only return specific item with cfname
-            for item in TicketSystem(self.env).get_custom_fields():
-                if item['name'] == cfield['name']:
-                    return item
-            return None        # item not found
-    
+        items = TicketSystem(self.env).get_custom_fields()
+        for item in items:
+            if item['type'] == 'textarea':
+                item['cols'] = item.pop('width')
+                item['rows'] = item.pop('height')
+            if cfield and item['name'] == cfield['name']:
+                return item  # only return specific item with cfname
+        if cfield:
+            return None   # item not found
+        else:
+            return items  # return full list
+
     def verify_custom_field(self, cfield, create=True):
         """ Basic validation of the input for modifying or creating
         custom fields. """

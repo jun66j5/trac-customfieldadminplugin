@@ -55,6 +55,21 @@ class CustomFieldApiTestCase(unittest.TestCase):
         self.assertEquals(cfield, {'name': u'foo', 'format': 'plain',
                 'value': '42', 'label': u'Answer', 'type': u'text', 'order': 1})
 
+    def test_update_textarea(self):
+        cfield = {'name': 'foo', 'type': 'textarea'}
+        self.cf_api.create_custom_field(cfield)
+        self.assertEquals(cfield, {'name': u'foo', 'format': 'plain',
+                                   'value': '', 'label': u'Foo',
+                                   'type': u'textarea', 'order': 1,
+                                   'cols': 60, 'rows': 5})
+        cfield['cols'] = 42
+        cfield['rows'] = 3
+        self.cf_api.update_custom_field(cfield=cfield)
+        self.assertEquals(cfield, {'name': u'foo', 'format': 'plain',
+                                   'value': '', 'label': u'Foo',
+                                   'type': u'textarea', 'order': 1,
+                                   'cols': 42, 'rows': 3})
+
     def test_update_non_existing(self):
         try:
             self.cf_api.update_custom_field(cfield={'name': 'no_field'})

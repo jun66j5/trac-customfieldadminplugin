@@ -69,8 +69,11 @@
         </div>
         <div class="field">
           <label for="cols">Size of Textarea for entry (Textarea only):<br />
-            Columns: <input type="text" name="cols" id="cols" size="5" value="${cfield.width}" />
-            Rows: <input type="text" size="5" name="rows" id="rows" value="${cfield.height}" /></label>
+            Columns: <input type="text" name="cols" id="cols" size="5" value="${cfield.cols}" />
+          </label>
+          <label for="rows">
+            Rows: <input type="text" size="5" name="rows" id="rows" value="${cfield.rows}" />
+          </label>
         </div>
         <div class="buttons">
           <input type="submit" name="cancel" value="${_('Cancel')}" />
@@ -126,6 +129,8 @@
         <div class="field">
           <label for="cols">Size of Textarea:<br />
             Cols: <input type="text" name="cols" id="cols" size="2" />
+          </label>
+          <label for="rows">
             Rows: <input type="text" size="2" name="rows" id="rows" />
           </label>
         </div>
