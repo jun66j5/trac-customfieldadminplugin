@@ -106,8 +106,8 @@ class CustomFields(Component):
         # Check that it is a valid field type
         if not cfield['type'] in \
                         ['text', 'checkbox', 'select', 'radio', 'textarea']:
-            raise TracError(_("%(field_type)s is not a valid field type"),
-                                        field_type=cfield['type'])
+            raise TracError(_("%(field_type)s is not a valid field type",
+                                        field_type=cfield['type']))
         # Check that field does not already exist
         # (if modify it should already be deleted)
         if create and self.config.get('ticket-custom', cfield['name']):
