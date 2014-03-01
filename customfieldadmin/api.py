@@ -12,7 +12,8 @@ import re
 
 from pkg_resources import resource_filename
 
-from trac.core import *
+from trac.core import Component, ExtensionPoint, Interface, TracError, \
+                      implements
 from trac.ticket.api import TicketSystem
 
 try:
@@ -27,7 +28,45 @@ except:
         pass
 
 
-__all__ = ['CustomFields']
+__all__ = ['CustomFields', 'ICustomFieldTypeProvider']
+
+
+class ICustomFieldTypeProvider(Interface):
+
+    def get_supported_types():
+        """Return a list of extra type and localized label of custom field.
+
+        Each item must be `(name, label)` tuple.
+        """
+
+    def get_property_names(type):
+        """Return a list of property names for `type`.
+
+        The property names will be used for `<name>.<property> = ...` in
+        [ticket-custom] section.
+        """
+
+    def render_field(context, cfield, value):
+        """Return a Fragment object of Genshi for field in ticket view.
+
+        If `None` is returned, `value` will be shown without changes.
+        """
+
+    def render_editor(context, cfield, value):
+        """Return a Fragment object of Genshi for `type` field in ticket form.
+        """
+
+    def render_admin_field(context, type, cfield={}):
+        """Iterate Fragment objects of Genshi for `type` field in custom
+        field admin panel.
+        """
+
+    def validate_admin_field(cfield):
+        """Validate a custom field in admin panel.
+
+        Iterate `(name, message)` tuples for problems detected in the
+        `cfield`.
+        """
 
 
 class CustomFields(Component):
@@ -35,7 +74,7 @@ class CustomFields(Component):
     Adds update_custom_field and delete_custom_field methods.
     (The get_custom_fields is already part of the API - just redirect here,
      and add option to only get one named field back.)
-    
+
     Input to methods is a 'cfield' dict supporting these keys:
         name = name of field (ascii alphanumeric only)
         type = text|checkbox|select|radio|textarea
@@ -48,12 +87,16 @@ class CustomFields(Component):
         order = specify sort order for field
         format = text|wiki (for text and textarea)
     """
-    
+
     implements()
-    
+
+    providers = ExtensionPoint(ICustomFieldTypeProvider)
+
     config_options = ['label', 'value', 'options', 'cols', 'rows',
                          'order', 'format']
-    
+
+    std_types = ('text', 'select', 'checkbox', 'radio', 'textarea')
+
     def __init__(self):
         # bind the 'customfieldadmin' catalog to the specified locale directory
         try:
@@ -68,7 +111,7 @@ class CustomFields(Component):
         except ImportError:
             from customfieldadmin import __version__
             self.env.systeminfo.append(('CustomFieldAdmin', __version__))
-        
+
     def get_custom_fields(self, cfield=None):
         """ Returns the custom fields from TicketSystem component.
         Use a cfdict with 'name' key set to find a specific custom field only.
@@ -78,6 +121,15 @@ class CustomFields(Component):
             if item['type'] == 'textarea':
                 item['cols'] = item.pop('width')
                 item['rows'] = item.pop('height')
+            elif item['type'] == 'text':
+                config_get = self.config.get
+                type = config_get('ticket-custom', item['name'] + '.type')
+                provider = self.get_provider(type)
+                if provider:
+                    item['type'] = type
+                    for prop in provider.get_property_names(type):
+                        item[prop] = config_get('ticket-custom',
+                                                item['name'] + '.' + prop)
             if cfield and item['name'] == cfield['name']:
                 return item  # only return specific item with cfname
         if cfield:
@@ -104,15 +156,21 @@ class CustomFields(Component):
             raise TracError(
                     _("Custom field name must begin with a character (a-z)."))
         # Check that it is a valid field type
-        if not cfield['type'] in \
-                        ['text', 'checkbox', 'select', 'radio', 'textarea']:
-            raise TracError(_("%(field_type)s is not a valid field type",
-                                        field_type=cfield['type']))
+        provider = None
+        if not cfield['type'] in self.std_types:
+            provider = self.get_provider(cfield['type'])
+            if not provider:
+                raise TracError(_("%(field_type)s is not a valid field type",
+                                  field_type=cfield['type']))
+            for prop, message in provider.validate_admin_field(cfield):
+                raise TracError("%(name)s.%(prop)s: %(message)s" %
+                                dict(name=cfield['name'], prop=prop,
+                                     message=message))
         # Check that field does not already exist
         # (if modify it should already be deleted)
         if create and self.config.get('ticket-custom', cfield['name']):
             raise TracError(_("Can not create as field already exists."))
-    
+
     def create_custom_field(self, cfield):
         """ Create the new custom fields (that may just have been deleted as
         part of 'modify'). In `cfield`, 'name' and 'type' keys are required.
@@ -120,7 +178,17 @@ class CustomFields(Component):
         # Need count pre-create for correct order
         count_current_fields = len(self.get_custom_fields())
         # Set the mandatory items
-        self.config.set('ticket-custom', cfield['name'], cfield['type'])
+        type = cfield['type']
+        if type in self.std_types:
+            provider = None
+            self.config.set('ticket-custom', cfield['name'], type)
+        else:
+            provider = self.get_provider(cfield['type'])
+            self.config.set('ticket-custom', cfield['name'], 'text')
+            self.config.set('ticket-custom', cfield['name'] + '.type', type)
+            for prop in provider.get_property_names(type):
+                self.config.set('ticket-custom', cfield['name'] + '.' + prop,
+                                cfield.get(prop))
         # Label = capitalize fieldname if not present
         self.config.set('ticket-custom', cfield['name'] + '.label',
                         cfield.get('label') or cfield['name'].capitalize())
@@ -134,7 +202,7 @@ class CustomFields(Component):
                                 '|' + '|'.join(cfield['options']))
             else:
                 self.config.set('ticket-custom', cfield['name'] + '.options',
-                               '|'.join(cfield['options'])) 
+                               '|'.join(cfield['options']))
         if 'format' in cfield and cfield['type'] in ('text', 'textarea'):
             self.config.set('ticket-custom', cfield['name'] + '.format',
                                                         cfield['format'])
@@ -165,7 +233,7 @@ class CustomFields(Component):
         self.verify_custom_field(cfield, create=False)
         self.delete_custom_field(cfield, modify=True)
         self.create_custom_field(cfield)
-    
+
     def delete_custom_field(self, cfield, modify=False):
         """ Deletes a custom field. Input is a dictionary
         (see update_custom_field), but only ['name'] is required.
@@ -194,6 +262,12 @@ class CustomFields(Component):
         # Persist permanent deletes
         if not modify:
             self._save(cfield)
+
+    def get_provider(self, name):
+        for provider in self.providers:
+            for name_, label in provider.get_supported_types():
+                if name == name_:
+                    return provider
 
     def _save(self, cfield=None):
         """ Saves a value, clear caches if needed / supported. """

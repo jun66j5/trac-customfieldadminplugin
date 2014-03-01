@@ -27,11 +27,13 @@
         <div class="field">
           <label>Type:<br />
             <select name="type" id="type">
-              <option py:for="value in
-                       ['text', 'select', 'checkbox', 'radio', 'textarea']"
+              <option py:for="value in cfstd_types"
                   value="${value}"
                   selected="${cfield.type==value and 'selected' or None}">
                 ${value.capitalize()}</option>
+              <option py:for="name, label, provider in cfextra_types"
+                      value="$name"
+                      selected="${cfield.type == name and 'selected' or None}">$label</option>
             </select>
           </label>
         </div>
@@ -75,6 +77,10 @@
             Rows: <input type="text" size="5" name="rows" id="rows" value="${cfield.rows}" />
           </label>
         </div>
+        <py:for each="name, label, provider in cfextra_types">
+          <div py:for="content in provider.render_admin_field(context, name, cfield)"
+               class="field field_$name" style="display:none">$content</div>
+        </py:for>
         <div class="buttons">
           <input type="submit" name="cancel" value="${_('Cancel')}" />
           <input type="submit" name="save" value="${_('Save')}" />
@@ -93,9 +99,10 @@
         <div class="field">
           <label>Type:<br />
             <select name="type" id="type">
-              <option py:for="value in
-                       ['text', 'select', 'checkbox', 'radio', 'textarea']"
+              <option py:for="value in cfstd_types"
                   value="${value}">${value.capitalize()}</option>
+              <option py:for="name, label, provider in cfextra_types"
+                      value="$name">$label</option>
             </select>
           </label>
         </div>
@@ -134,6 +141,10 @@
             Rows: <input type="text" size="2" name="rows" id="rows" />
           </label>
         </div>
+        <py:for each="name, label, provider in cfextra_types">
+          <div py:for="content in provider.render_admin_field(context, name)"
+               class="field field_$name" style="display:none">$content</div>
+        </py:for>
         <div class="buttons">
           <input type="submit" name="add" value="${_('Add')}" />
         </div>
@@ -192,4 +203,3 @@
   </body>
 
 </html>
-

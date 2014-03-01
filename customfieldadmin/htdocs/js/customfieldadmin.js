@@ -5,30 +5,41 @@
 **********/
 (function($){
     function toggle_options(type_element){
-        function label(property){ return $(property).parents('div.field')}
-        switch (type_element.selectedIndex) {
-            case 0: // text
-                label('#options, #cols, #rows').hide();
-                label('#format').show();
+        function label(property){
+            return form.find(property).closest('div.field');
+        }
+        var form = $('#tabcontent');
+        var value = type_element.options[type_element.selectedIndex].value;
+        var show_fields;
+        switch (value) {
+            case 'text':
+                show_fields = label('#format');
                 break;
-            case 1: // select
-                label('#options').show();
-                label('#cols, #rows, #format').hide();
+            case 'select':
+                show_fields = label('#options');
                 break;
-            case 2: // checkbox
-                label('#options, #cols, #rows, #format').hide();
+            case 'checkbox':
                 break;
-            case 3: // radio
-                label('#options').show();
-                label('#cols, #rows, #format').hide();
-                break;      
-            case 4: // textarea
-                label('#options').hide();
-                label('#cols, #rows, #format').show();
+            case 'radio':
+                show_fields = label('#options');
+                break;
+            case 'textarea':
+                show_fields = label('#cols, #rows, #format');
+                break;
+            default:
+                show_fields = label('.field_' + value);
                 break;
         }
+        var hide_fields = $('div.field');
+        hide_fields = hide_fields.not(label('[name=name], [name=type], ' +
+                                            '[name=label], [name=value]'));
+        if (show_fields)
+            hide_fields = hide_fields.not(show_fields)
+        hide_fields.hide();
+        if (show_fields)
+            show_fields.show();
     }
-    
+
     $(document).ready(function(){
         $('#type').each(function(){
             toggle_options(this);
