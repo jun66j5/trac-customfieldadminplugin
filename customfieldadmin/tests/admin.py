@@ -13,6 +13,7 @@ from trac.web.api import RequestDone
 from trac.web.href import Href
 
 from customfieldadmin.admin import CustomFieldAdminPage
+from customfieldadmin.api import CustomFields
 
 class CustomFieldAdminPageTestCase(unittest.TestCase):
 
@@ -21,6 +22,7 @@ class CustomFieldAdminPageTestCase(unittest.TestCase):
         ps = PermissionSystem(self.env)
         ps.grant_permission('admin', 'TICKET_ADMIN')
         self.plugin = CustomFieldAdminPage(self.env)
+        self.api = CustomFields(self.env)
 
     def tearDown(self):
         if hasattr(self.env, 'destroy_db'):
@@ -114,3 +116,21 @@ class CustomFieldAdminPageTestCase(unittest.TestCase):
                      (u'test.options', u'|one|two'), (u'test.order', u'2'),
                      (u'test.value', u'')])
 
+    def test_order_with_mismatched_keys(self):
+        # http://trac-hacks.org/ticket/11540
+        self.api.create_custom_field({'name': u'one', 'format': 'plain',
+                    'value': '', 'label': u'One', 'type': u'text', 'order': 1})
+        def redirect(url):
+            raise RequestDone
+        req = Mock(perm=PermissionCache(self.env, 'admin'),
+                   authname='admin',
+                   chrome={},
+                   href=Href('/'),
+                   redirect=redirect,
+                   method='POST',
+                   args={'apply': True,
+                         'order_two': '1'})
+        try:
+            self.plugin.render_admin_panel(req, 'ticket', 'customfields', None)
+        except RequestDone, e:
+            pass

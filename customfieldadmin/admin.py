@@ -105,8 +105,10 @@ class CustomFieldAdminPage(Component):
                                   if key.startswith('order_')])
                     cfields = cf_api.get_custom_fields()
                     for current_cfield in cfields:
-                        current_cfield['order'] = order[current_cfield['name']]
-                        cf_api.update_custom_field(current_cfield)
+                        new_order = order.get(current_cfield['name'], 0)
+                        if new_order:
+                            current_cfield['order'] = new_order
+                            cf_api.update_custom_field(current_cfield)
                     req.redirect(req.href.admin(cat, page))
 
             cfields = []
