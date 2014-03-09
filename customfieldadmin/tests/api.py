@@ -7,6 +7,7 @@ License: BSD
 
 import unittest
 
+from trac.core import TracError
 from trac.test import EnvironmentStub, Mock
 
 from customfieldadmin.api import CustomFields
@@ -136,6 +137,16 @@ class CustomFieldApiTestCase(unittest.TestCase):
                     self.env.config.get('ticket-custom', 'foo.label'))
         self.assertEquals('42',
                     self.env.config.get('ticket-custom', 'foo.answer'))
+
+    def test_verify_unknown_type(self):
+        self.env.config.set('ticket-custom', 'one', 'foo_type')
+        fields = self.cf_api.get_custom_fields()
+        self.assertEquals(1, len(fields))
+        try:
+            self.cf_api.verify_custom_field(fields[0], create=False)
+        except TracError, e:
+            self.assertTrue("foo_type" in e.message)
+
 
 class CustomFieldL10NTestCase(unittest.TestCase):
 
